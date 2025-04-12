@@ -6,7 +6,8 @@ import  ApiResponse from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose";
 
-const generateAccessAndRefreshToken = async (userId) => {
+
+    const generateAccessAndRefreshToken = async (userId) => {
     try {
         const user = await User.findById(userId);
         const accessToken = await user.generateAccessToken();
@@ -17,9 +18,9 @@ const generateAccessAndRefreshToken = async (userId) => {
         throw new ApiError(500, "Something went wrong while generating tokens");
     }
     return { accessToken, refreshToken };
-};
+    }
 
-const registerUser = asyncHandler( async (req, res) => {
+    const registerUser = asyncHandler( async (req, res) => {
     // get user details from frontend
     // validation - not empty
     // check if user already exists: username, email
@@ -92,9 +93,9 @@ const registerUser = asyncHandler( async (req, res) => {
     )
 
 
-})
+    })
 
-const loginUser = asyncHandler(async (req, res) => {
+    const loginUser = asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
   
     // Check if either username or email is provided
@@ -142,11 +143,9 @@ const loginUser = asyncHandler(async (req, res) => {
           refreshToken,
         },
       });
-  });
-  
-  
+    });
 
-const logoutUser = asyncHandler( async(req, res) => {
+    const logoutUser = asyncHandler( async(req, res) => {
     await User.findByIdAndUpdate(
         req.user._id,
     
@@ -169,7 +168,7 @@ const logoutUser = asyncHandler( async(req, res) => {
         .clearCookie("refreshToken", options)
         .json(new ApiResponse(200, {}, "Logedout successfully"))
 
-})
+    })
 
     const refreshAccessToken = asyncHandler(async(req, res) => {
         const incomingrefreshToken = 
@@ -397,6 +396,69 @@ const logoutUser = asyncHandler( async(req, res) => {
 
     })
 
+    // req.user?._id mongoDB ki id nhi deta balki ek string deta hai
+    // aur jab hum us par mongoose ke opretion lagate hai to mongoose usme se id nikalta hai 
+    // but agar hum bina kisi mongoose ke opretion ka use kie use karte hai to str hi milti hai 
+    // jisko hme change karna padhta hai agli arr. pipeline me iska use use kia hai
+
+    const getWatchHistory = asyncHandler(async (req, res) => {
+        const user = await aggregate([
+            {
+                $match: {
+                    _id: new mongoose.Types.ObjectId(req.user._id)
+                }
+            },
+            {
+                $lookup: {
+                    from: "videos",
+                    localField: "watchHistory",
+                    foreignField: "_id",
+                    as: "WatchHistory",
+                    pipeline: [
+                        {
+                          $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                          }
+                        },
+
+                        // because owner as a array milega
+                        // uska first obj. nikalne ke liye
+                        {
+                            $addFields: {
+                                // owner ko overlape kar rhe hai
+                                owner: {
+                                    $first: "$owner"
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ])
+
+        return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200, 
+                user[0].watchHistory,
+                "WatchHistory Fatched Successfully"
+            )
+        )
+    })
+
 export {
          registerUser,
          loginUser,
@@ -407,7 +469,8 @@ export {
          updateAccountDetails,
          updateUserAvatar,
          updateUserCoverImage,
-         getUserChannelProfile
+         getUserChannelProfile,
+         getWatchHistory
        }
 
 
