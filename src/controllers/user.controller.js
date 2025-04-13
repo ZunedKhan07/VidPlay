@@ -7,18 +7,22 @@ import jwt from "jsonwebtoken"
 import mongoose from "mongoose";
 
 
-    const generateAccessAndRefreshToken = async (userId) => {
+const generateAccessAndRefereshTokens = async(userId) =>{
     try {
-        const user = await User.findById(userId);
-        const accessToken = await user.generateAccessToken();
-        const refreshToken = await user.genetareRefreshToken(); 
-        user.refreshToken = refreshToken;
-        await user.save({ validateBeforeSave: false });
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken = refreshToken
+        await user.save({ validateBeforeSave: false })
+
+        return {accessToken, refreshToken}
+
+
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while generating tokens");
+        throw new ApiError(500, "Something went wrong while generating referesh and access token")
     }
-    return { accessToken, refreshToken };
-    }
+}
 
     const registerUser = asyncHandler( async (req, res) => {
     // get user details from frontend
@@ -96,10 +100,10 @@ import mongoose from "mongoose";
     })
 
     const loginUser = asyncHandler(async (req, res) => {
-    const { username, email, password } = req.body;
+    const { username, email, password } = req.body
   
     // Check if either username or email is provided
-    if (!(username || email)) {
+    if (!username && !email) {
       throw new ApiError(400, "Username or email must be provided");
     }
   
@@ -120,7 +124,7 @@ import mongoose from "mongoose";
     }
   
     // Generate access and refresh tokens
-    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
+    const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user._id);
   
     // Send the user details and tokens in response
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
